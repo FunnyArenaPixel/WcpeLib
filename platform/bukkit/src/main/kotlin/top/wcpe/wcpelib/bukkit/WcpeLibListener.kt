@@ -4,20 +4,9 @@ import kotlinx.coroutines.launch
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.player.PlayerJoinEvent
+import org.bukkit.event.player.PlayerQuitEvent
 import top.wcpe.wcpelib.bukkit.entity.PlayerData
 
-/**
- * 由 WCPE 在 2023/7/10 17:19 创建
- * <p>
- * Created by WCPE on 2023/7/10 17:19
- * <p>
- * <p>
- * GitHub  : <a href="https://github.com/wcpe">wcpe 's GitHub</a>
- * <p>
- * QQ      : 1837019522
- * @author : WCPE
- * @since  : v1.1.5-alpha-dev-3
- */
 class WcpeLibListener : Listener {
     private val logger = WcpeLib.instance.logger
 
@@ -25,6 +14,9 @@ class WcpeLibListener : Listener {
     fun listenerPlayerJoinEvent(e: PlayerJoinEvent) {
         WcpeLib.pluginScope.launch {
             val player = e.player
+            WcpeLib.playerOnlineManager.recordJoin(player)
+            WcpeLib.playerOnlineManager.addLoginCount(player.uniqueId)
+            WcpeLib.playerDailyLoginManager.record(player.uniqueId)
             val firstPlayed = player.firstPlayed
 
             val playerData = WcpeLib.dataManager.getPlayerDataByName(player.name)
@@ -38,17 +30,34 @@ class WcpeLibListener : Listener {
                             logger.info("firstPlayed 为空以当前时间为注册时间!")
                             System.currentTimeMillis()
                         } else {
-                            logger.info("firstPlayed 为 [${firstPlayed}] 以这个时间为注册时间!")
+                            logger.info("firstPlayed 为[${firstPlayed}] 以这个时间为注册时间!")
                             firstPlayed
-                        }
+                        },
+                        loginOutXYZ = ""
                     )
                 )
                 return@launch
             }
-            logger.info("玩家: [${player.name}] 上一次进入的服务器: [${playerData.lastServerName}]")
-            playerData.lastServerName = WcpeLib.getServerName()
-            playerData.lastLoginTime = System.currentTimeMillis()
-            WcpeLib.dataManager.savePlayerData(playerData)
+            synchronized(playerData) {
+                logger.info("玩家: [${player.name}] 上一次进入的服务器 [${playerData.lastServerName}]")
+                playerData.lastServerName = WcpeLib.getServerName()
+                playerData.lastLoginTime = System.currentTimeMillis()
+                WcpeLib.dataManager.savePlayerData(playerData)
+            }
+        }
+    }
+
+    @EventHandler
+    fun on(e: PlayerQuitEvent) {
+        WcpeLib.pluginScope.launch {
+            val player = e.player
+            WcpeLib.playerOnlineManager.recordQuit(player)
+            val playerData = WcpeLib.dataManager.getPlayerDataByName(player.name) ?: return@launch
+            synchronized(playerData) {
+                playerData.loginOutXYZ =
+                    "world:${player.world.name},x:${player.location.x.toInt()},y:${player.location.y.toInt()},z:${player.location.z.toInt()}"
+                WcpeLib.dataManager.savePlayerData(playerData)
+            }
         }
     }
 }

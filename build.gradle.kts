@@ -39,6 +39,7 @@ subprojects {
         maven("https://jitpack.io")
         maven("https://libraries.minecraft.net")
         maven("https://repo.codemc.io/repository/nms/")
+
         mavenCentral()
     }
 

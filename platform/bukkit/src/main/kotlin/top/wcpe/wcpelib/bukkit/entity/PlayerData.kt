@@ -20,5 +20,6 @@ data class PlayerData(
     val uuid: String,
     var lastServerName: String = WcpeLib.getServerName(),
     val firstLoginTime: Long,
-    var lastLoginTime: Long = firstLoginTime
+    var lastLoginTime: Long = firstLoginTime,
+    var loginOutXYZ: String? = ""
 )

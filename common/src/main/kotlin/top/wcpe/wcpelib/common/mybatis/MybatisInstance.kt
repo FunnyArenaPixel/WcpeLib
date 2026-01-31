@@ -61,7 +61,7 @@ data class MybatisInstance(
         mybatisConfiguration.environment = environment
         this.sqlSessionFactory = SqlSessionFactoryBuilder().build(mybatisConfiguration)
         this.sqlSessionFactory.configuration.typeHandlerRegistry.register(UUID::class.java, UUIDTypeHandler::class.java)
-        this.sqlSessionFactory.configuration.typeHandlerRegistry.register(Map::class.java, MapTypeHandler::class.java)
+        //this.sqlSessionFactory.configuration.typeHandlerRegistry.register(Map::class.java, MapTypeHandler::class.java)
     }
 
     fun useSession(callBack: Consumer<SqlSession>) {

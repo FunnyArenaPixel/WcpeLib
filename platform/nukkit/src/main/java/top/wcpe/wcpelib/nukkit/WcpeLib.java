@@ -1,6 +1,8 @@
 package top.wcpe.wcpelib.nukkit;
 
 
+import cn.nukkit.entity.custom.EntityDefinition;
+import cn.nukkit.entity.custom.EntityManager;
 import cn.nukkit.plugin.PluginBase;
 import lombok.Getter;
 import lombok.val;
@@ -19,7 +21,6 @@ import top.wcpe.wcpelib.nukkit.adapter.LoggerAdapterNukkitImpl;
 import top.wcpe.wcpelib.nukkit.command.v2.CommandManager;
 import top.wcpe.wcpelib.nukkit.placeholder.data.PlayerPlaceholderExtend;
 import top.wcpe.wcpelib.nukkit.placeholder.data.ServerPlaceholder;
-import top.wcpe.wcpelib.nukkit.server.RegisterEntityInfo;
 import top.wcpe.wcpelib.nukkit.server.ServerInfo;
 
 import java.io.File;
@@ -31,7 +32,7 @@ import java.util.HashMap;
  * <p>
  * Created by WCPE on 2022/1/2 17:07
  * <p>
- * Github: https://github.com/wcpe
+ * Github: <a href="https://github.com/wcpe">...</a>
  * <p>
  * QQ: 1837019522
  *
@@ -41,10 +42,12 @@ public final class WcpeLib extends PluginBase implements PlatformAdapter {
 
     @Getter
     private static final HashMap<String, ServerInfo> serverInfoMap = new HashMap<>();
-    private static final HashMap<String, RegisterEntityInfo> registerEntityInfoMap = new HashMap<>();
 
+    @Getter
     private static WcpeLib instance;
+    @Getter
     private static ConfigAdapter itemConfig;
+    @Getter
     private static ConfigAdapter registerEntityConfig;
     private static ConfigAdapter serverInfoConfig;
 
@@ -78,32 +81,12 @@ public final class WcpeLib extends PluginBase implements PlatformAdapter {
         return WcpeLibCommon.INSTANCE.getKtor();
     }
 
-    public static WcpeLib getInstance() {
-        return instance;
-    }
-
     public static String getServerName() {
         return instance.getConfig().getString("server.server-name");
     }
 
     public static ServerInfo getServerInfo(String serverName) {
         return serverInfoMap.get(serverName);
-    }
-
-    public static HashMap<String, RegisterEntityInfo> getRegisterEntityInfoMap() {
-        return registerEntityInfoMap;
-    }
-
-    public static RegisterEntityInfo getRegisterEntityInfo(String registerEntityKey) {
-        return registerEntityInfoMap.get(registerEntityKey);
-    }
-
-    public static ConfigAdapter getItemConfig() {
-        return itemConfig;
-    }
-
-    public static ConfigAdapter getRegisterEntityConfig() {
-        return registerEntityConfig;
     }
 
 
@@ -139,7 +122,6 @@ public final class WcpeLib extends PluginBase implements PlatformAdapter {
             getLogger().info(key + ":" + viewName + " -> " + host + ":" + port);
         }
         getLogger().info("开始读取注册实体信息");
-        registerEntityInfoMap.clear();
         SectionAdapter registerEntitySection = getRegisterEntityConfig().getSection("register-entity");
         if (registerEntitySection != null) {
             for (String key : registerEntitySection.getKeys(false)) {
@@ -147,7 +129,19 @@ public final class WcpeLib extends PluginBase implements PlatformAdapter {
                 if (keySection == null) {
                     continue;
                 }
-                registerEntityInfoMap.put(key, new RegisterEntityInfo(key, keySection.getBoolean("hasSpawnEgg"), keySection.getBoolean("summonAble"), keySection.getString("id"), keySection.getString("bid"), keySection.getInt("rid")));
+                EntityDefinition entityDefinition = EntityDefinition.builder()
+                        .identifier(keySection.getString("id"))
+                        .parentEntity(keySection.getString("bid"))
+                        .alternateName("")
+                        .spawnEgg(keySection.getBoolean("hasSpawnEgg"))
+                        .serverSideOnly(false)
+                        .runtimeId(keySection.getInt("rid")).build();
+                entityDefinition.setEntityBiFunction(((fullChunk, compoundTag) -> {
+                    CustomDefineEntity customDefineEntity = new CustomDefineEntity(fullChunk, compoundTag);
+                    customDefineEntity.setDefinition(entityDefinition);
+                    return customDefineEntity;
+                }));
+                EntityManager.get().registerDefinition(entityDefinition);
                 getLogger().info("读取 " + key + "成功 id -> " + keySection.getString("id"));
             }
         }

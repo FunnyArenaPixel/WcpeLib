@@ -4,6 +4,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import org.bukkit.plugin.java.JavaPlugin
 import org.slf4j.LoggerFactory
 import top.wcpe.wcpelib.bukkit.adapter.ConfigAdapterBukkitImpl
@@ -13,6 +14,8 @@ import top.wcpe.wcpelib.bukkit.data.IDataManager
 import top.wcpe.wcpelib.bukkit.data.impl.MySQLDataManager
 import top.wcpe.wcpelib.bukkit.data.impl.NullDataManager
 import top.wcpe.wcpelib.bukkit.hook.PlaceholderAPIHook
+import top.wcpe.wcpelib.bukkit.manager.PlayerDailyLoginManager
+import top.wcpe.wcpelib.bukkit.manager.PlayerOnlineManager
 import top.wcpe.wcpelib.bukkit.version.VersionManager.versionInfo
 import top.wcpe.wcpelib.common.PlatformAdapter
 import top.wcpe.wcpelib.common.WcpeLibCommon.init
@@ -28,16 +31,10 @@ import top.wcpe.wcpelib.common.redis.Redis
 import java.io.File
 
 /**
- * 由 WCPE 在 2023/7/30 13:52 创建
- * <p>
- * Created by WCPE on 2023/7/30 13:52
- * <p>
- * <p>
- * GitHub  : <a href="https://github.com/wcpe">wcpe 's GitHub</a>
- * <p>
+ * Bukkit 端主插件入口
+ *
+ * GitHub  : https://github.com/wcpe
  * QQ      : 1837019522
- * @author : WCPE
- * @since  : v1.2.1
  */
 class WcpeLib : JavaPlugin(), PlatformAdapter {
     companion object {
@@ -47,6 +44,14 @@ class WcpeLib : JavaPlugin(), PlatformAdapter {
 
         @JvmStatic
         lateinit var dataManager: IDataManager
+            private set
+
+        @JvmStatic
+        lateinit var playerOnlineManager: PlayerOnlineManager
+            private set
+
+        @JvmStatic
+        lateinit var playerDailyLoginManager: PlayerDailyLoginManager
             private set
 
         @JvmStatic
@@ -97,9 +102,7 @@ class WcpeLib : JavaPlugin(), PlatformAdapter {
 
         @JvmStatic
         val pluginScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
-
     }
-
 
     private val logger = LoggerFactory.getLogger(javaClass)
 
@@ -113,10 +116,19 @@ class WcpeLib : JavaPlugin(), PlatformAdapter {
         initDefaultMapper()
         saveDefaultConfig()
         server.pluginManager.registerEvents(WcpeLibListener(), this)
+        playerOnlineManager = PlayerOnlineManager(dataManager, this)
+        playerOnlineManager.start()
+        playerDailyLoginManager = PlayerDailyLoginManager(dataManager)
+        server.onlinePlayers.forEach { player ->
+            pluginScope.launch {
+                playerOnlineManager.recordJoin(player)
+                playerDailyLoginManager.record(player.uniqueId)
+            }
+        }
         logger.info("load time: ${System.currentTimeMillis() - start} ms")
         server.consoleSender.sendMessage("§a  _       __                          __     _     __  ")
         server.consoleSender.sendMessage("§a | |     / /  _____    ____   ___    / /    (_)   / /_ ")
-        server.consoleSender.sendMessage("§a | | /| / /  / ___/   / __ \\ / _ \\  / /    / /   / __ \\")
+        server.consoleSender.sendMessage("§a | | /| / /  / ___/   / __ \\\\ / _ \\\\  / /    / /   / __ \\\\")
         server.consoleSender.sendMessage("§a | |/ |/ /  / /__    / /_/ //  __/ / /___ / /   / /_/ /")
         server.consoleSender.sendMessage("§a |__/|__/   \\___/   / .___/ \\___/ /_____//_/   /_.___/ ")
         server.consoleSender.sendMessage("§a                   /_/                                 ")
@@ -125,6 +137,7 @@ class WcpeLib : JavaPlugin(), PlatformAdapter {
         logger.info("nms version: ${versionInfo.nmsClassPath}")
         logger.info("obc version: ${versionInfo.obcClassPath}")
         logger.info("Hook PlaceholderAPI: ${PlaceholderAPIHook.getPlugin()}")
+        dataManager.addColumn("login_out_xyz", "VARCHAR(255)", "下线世界和坐标")
     }
 
     private fun initDefaultMapper() {
@@ -133,11 +146,11 @@ class WcpeLib : JavaPlugin(), PlatformAdapter {
         val mybatis = mybatis
         if (mybatis == null) {
             dataManager = NullDataManager()
-            logger.info("MySQL 未连接 Mybatis 初始化失败!")
+            logger.info("MySQL 未连接，Mybatis 初始化失败")
             return
         }
         dataManager = MySQLDataManager(mybatis)
-        logger.info("始化默认 Mapper 完成 耗时:${(System.currentTimeMillis() - start)} Ms")
+        logger.info("初始化默认 Mapper 完成 耗时:${(System.currentTimeMillis() - start)} Ms")
     }
 
     override fun reloadAllConfig(): Boolean {
@@ -166,13 +179,13 @@ class WcpeLib : JavaPlugin(), PlatformAdapter {
     override fun registerCommand(abstractCommand: AbstractCommand, pluginInstance: Any): Boolean {
         return if (pluginInstance !is JavaPlugin) {
             false
-        } else CommandManager.registerCommand(
-            abstractCommand,
-            pluginInstance
-        )
+        } else {
+            CommandManager.registerCommand(abstractCommand, pluginInstance)
+        }
     }
 
     override fun onDisable() {
+        playerOnlineManager.shutdown()
         pluginScope.cancel()
     }
 }

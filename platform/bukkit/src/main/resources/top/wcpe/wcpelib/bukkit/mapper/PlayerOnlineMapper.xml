@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="top.wcpe.wcpelib.bukkit.mapper.PlayerOnlineMapper">
+
+    <resultMap id="PlayerOnlineDataResultMap" type="top.wcpe.wcpelib.bukkit.entity.PlayerOnlineData">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="player_uuid" property="playerUuid" jdbcType="CHAR" javaType="java.util.UUID"/>
+        <result column="stat_date" property="statDate" jdbcType="DATE" javaType="java.time.LocalDate"/>
+        <result column="online_minutes" property="onlineMinutes" jdbcType="INTEGER"/>
+        <result column="login_count" property="loginCount" jdbcType="INTEGER"/>
+        <result column="extra_info" property="extraInfo" jdbcType="LONGVARCHAR"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, player_uuid, stat_date, online_minutes, login_count, extra_info
+    </sql>
+
+    <update id="createTable">
+        CREATE TABLE IF NOT EXISTS `wpcelib_player_online` (
+          `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+          `player_uuid` CHAR(36) NOT NULL COMMENT '玩家UUID',
+          `stat_date` DATE NOT NULL COMMENT '统计日期(yyyy-MM-dd)',
+          `online_minutes` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '在线时长(分钟)',
+          `login_count` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '登录次数',
+          `extra_info` TEXT NOT NULL COMMENT '额外标记信息，使用逗号分隔的标记集合',
+          PRIMARY KEY (`id`),
+          UNIQUE KEY `uk_player_date` (`player_uuid`, `stat_date`),
+          KEY `idx_stat_date` (`stat_date`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    </update>
+
+    <insert id="upsertOnlineMinutes" parameterType="top.wcpe.wcpelib.bukkit.entity.PlayerOnlineData">
+        INSERT INTO `wpcelib_player_online` (player_uuid, stat_date, online_minutes, login_count, extra_info)
+        VALUES (#{playerUuid,jdbcType=CHAR,javaType=java.util.UUID},
+                #{statDate,jdbcType=DATE,javaType=java.time.LocalDate},
+                #{onlineMinutes,jdbcType=INTEGER},
+                #{loginCount,jdbcType=INTEGER},
+                #{extraInfo,jdbcType=LONGVARCHAR})
+        ON DUPLICATE KEY UPDATE
+            online_minutes = VALUES(online_minutes),
+            login_count = VALUES(login_count),
+            extra_info = VALUES(extra_info);
+    </insert>
+
+    <select id="listByPlayerUuid" parameterType="java.util.UUID" resultMap="PlayerOnlineDataResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM `wpcelib_player_online`
+        WHERE player_uuid = #{playerUuid,jdbcType=CHAR,javaType=java.util.UUID}
+        ORDER BY stat_date DESC
+    </select>
+
+    <select id="listBetween" resultMap="PlayerOnlineDataResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM `wpcelib_player_online`
+        WHERE player_uuid = #{playerUuid,jdbcType=CHAR,javaType=java.util.UUID}
+          AND stat_date BETWEEN #{startDate,jdbcType=DATE,javaType=java.time.LocalDate}
+          AND #{endDate,jdbcType=DATE,javaType=java.time.LocalDate}
+        ORDER BY stat_date DESC
+    </select>
+
+    <select id="getByPlayerUuidAndStatDate" resultMap="PlayerOnlineDataResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM `wpcelib_player_online`
+        WHERE player_uuid = #{playerUuid,jdbcType=CHAR,javaType=java.util.UUID}
+          AND stat_date = #{statDate,jdbcType=DATE,javaType=java.time.LocalDate}
+        LIMIT 1
+    </select>
+
+    <select id="sumOnlineMinutesBetween" resultType="int">
+        SELECT COALESCE(SUM(online_minutes), 0)
+        FROM `wpcelib_player_online`
+        WHERE player_uuid = #{playerUuid,jdbcType=CHAR,javaType=java.util.UUID}
+          AND stat_date BETWEEN #{startDate,jdbcType=DATE,javaType=java.time.LocalDate}
+          AND #{endDate,jdbcType=DATE,javaType=java.time.LocalDate}
+    </select>
+</mapper>

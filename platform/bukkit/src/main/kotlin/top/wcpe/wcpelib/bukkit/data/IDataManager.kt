@@ -12,4 +12,6 @@ package top.wcpe.wcpelib.bukkit.data
  * @author : WCPE
  * @since  : v1.1.5-alpha-dev-3
  */
-interface IDataManager : IPlayerDataManager
+interface IDataManager : IPlayerDataManager, IPlayerOnlineDataManager, IPlayerDailyLoginDataManager {
+    fun addColumn(columnName: String, columnType: String, columnComment: String)
+}
