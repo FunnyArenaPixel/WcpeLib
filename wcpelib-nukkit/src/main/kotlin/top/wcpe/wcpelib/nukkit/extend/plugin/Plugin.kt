@@ -22,7 +22,7 @@ inline fun <I : PluginBase> I.runTask(
     isAsynchronously: Boolean = false,
     crossinline runnable: I.() -> Unit
 ): TaskHandler {
-    return Server.getInstance().scheduler.scheduleTask(this, { runnable(this) }, isAsynchronously)
+    return Server.getInstance().scheduler.scheduleTask(this, Runnable { runnable(this) }, isAsynchronously)
 }
 
 fun PluginBase.runTaskLater(tick: Int, isAsynchronously: Boolean = false, runnable: Runnable): TaskHandler {
@@ -59,7 +59,7 @@ inline fun <I : PluginBase> I.runTaskTimer(
 ): TaskHandler {
     return Server.getInstance().scheduler.scheduleDelayedRepeatingTask(
         this,
-        { runnable(this) },
+        Runnable { runnable(this) },
         startTick,
         repeatTick,
         isAsynchronously

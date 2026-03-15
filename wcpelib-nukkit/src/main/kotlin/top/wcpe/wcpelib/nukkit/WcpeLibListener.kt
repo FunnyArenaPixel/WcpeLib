@@ -23,7 +23,7 @@ class WcpeLibListener : Listener {
     fun listenerDataPacketSendEvent(e: DataPacketSendEvent) {
         val packet = e.packet
         if (packet is AvailableEntityIdentifiersPacket) {
-            val tags = NBTIO.read(packet.tag, ByteOrder.LITTLE_ENDIAN, true)
+            val tags = NBTIO.read(packet.identifiers, ByteOrder.LITTLE_ENDIAN, true) as CompoundTag
             val idList = tags.getList("idlist", CompoundTag::class.java)
             for ((_, value) in WcpeLib.getRegisterEntityInfoMap()) {
                 idList.add(
@@ -36,7 +36,7 @@ class WcpeLibListener : Listener {
                 )
             }
             tags.put("idlist", idList)
-            packet.tag = NBTIO.write(tags, ByteOrder.LITTLE_ENDIAN, true)
+            packet.identifiers = NBTIO.write(tags as CompoundTag, ByteOrder.LITTLE_ENDIAN, true)
         }
     }
 }
