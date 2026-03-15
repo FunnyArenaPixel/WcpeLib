@@ -1,3 +1,18 @@
+sourceCompatibility = 17
+targetCompatibility = 17
+
+compileKotlin {
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+}
+
+compileTestKotlin {
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+}
+
 repositories {
     maven {
         url("https://repo.lanink.cn/repository/maven-public/")
