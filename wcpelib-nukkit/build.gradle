@@ -1,6 +1,11 @@
 sourceCompatibility = 17
 targetCompatibility = 17
 
+// KotlinLib 是纯 Nukkit 前置插件, 运行时由它提供 kotlin-stdlib / kotlin-reflect / kotlinx-coroutines,
+// 因此 WcpeLib-Nukkit 产物不再内置这些库, 避免与 KotlinLib 重复打包。
+// 注意: KotlinLib 仅支持 Nukkit (继承 cn.nukkit.plugin.PluginBase), 不可用于 Bukkit/BungeeCord。
+ext.kotlinLibJarPath = "${rootProject.projectDir}/libs/KotlinLib-1.0-SNAPSHOT.jar"
+
 compileKotlin {
     kotlinOptions {
         jvmTarget = '17'
@@ -23,4 +28,15 @@ dependencies {
     compileOnly project(':wcpelib-common')
     compileOnly "cn.nukkit:Nukkit:MOT-SNAPSHOT"
     compileOnly "me.onebone:economyapi:2.0.0"
+    // KotlinLib 作为运行时 Kotlin 生态提供者, 仅编译期可见, 不打包进产物
+    compileOnly files(kotlinLibJarPath)
+}
+
+// 排除由 KotlinLib 在运行时提供的 Kotlin 库, 不打入 shadowJar 产物
+shadowJar {
+    exclude 'kotlin/**'
+    exclude 'kotlinx/coroutines/**'
+    // kotlin-stdlib 的 META-INF 资源也一并排除
+    exclude 'META-INF/kotlin-stdlib*.kotlin_module'
+    exclude 'META-INF/kotlinx_coroutines_core.version'
 }
